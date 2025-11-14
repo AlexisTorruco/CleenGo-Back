@@ -1,24 +1,19 @@
 import {
   Controller,
-  Get,
   Post,
   Body,
   Param,
-  Query,
-  Req,
-  Res,
-  UseGuards,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginAuthDto } from './dto/login-auth';
 import { ApiOperation } from '@nestjs/swagger/dist/decorators/api-operation.decorator';
-import { ApiBearerAuth, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import { RegisterProviderDto } from 'src/provider/dto/create-provider.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'src/enum/role.enum';
-import { RolesGuard } from './guards/roles.guard';
+import { ThirdPartyAuthDto } from './dto/third-party-auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -68,23 +63,32 @@ export class AuthController {
   }
 
   //? -------- OAuth --------
-  @Get('third-party/:role')
+  @ApiOperation({
+    summary: 'Login/registro con terceros (Supabase OAuth)',
+    description:
+      'Usa el accessToken de Supabase para autenticar al usuario y devolver un JWT propio',
+  })
+  @ApiParam({
+    name: 'role',
+    required: true,
+    example: 'client o provider',
+    description: 'Rol con el que se registrará o autenticará el usuario',
+  })
+  @ApiBody({ type: ThirdPartyAuthDto })
+  @ApiOkResponse({
+    description:
+      'Usuario autenticado/registrado exitosamente con proveedor externo',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Token inválido o rol inválido',
+  })
+  @Post('third-party/:role')
+  @HttpCode(HttpStatus.OK)
   thirdPartyAuth(
-    @Param('role') role: string,
-    @Query('connection') connection: string | undefined,
-    @Req() req: any,
-    @Res() res: any,
-  ) {}
-
-  // // --- PRUEBA ---
-  // @ApiBearerAuth() //Valida en swagger
-  // @UseGuards(JwtAuthGuard, RolesGuard) //Valida el token
-  // @Roles(Role.CLIENT, Role.PROVIDER) //Valida el rol
-  // @Get('me')
-  // getProfile(@Req() req: any) {
-  //   return {
-  //     message: '✅ Ruta protegida',
-  //     user: req.user, // viene de jwt.strategy.validate
-  //   };
-  // }
+    @Param('role') roleParam: string,
+    @Body() body: ThirdPartyAuthDto,
+  ) {
+    return this.authService.thirdPartyAuth(roleParam, body);
+  }
 }

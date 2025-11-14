@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { RegisterProviderDto } from 'src/provider/dto/create-provider.dto';
 import { Provider } from 'src/provider/entities/provider.entity';
 import { JwtService } from '@nestjs/jwt';
+import { ThirdPartyAuthDto } from './dto/third-party-auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -190,6 +191,8 @@ export class AuthService {
 
     if (error) throw new BadRequestException(` ⚠️Credenciales inválidas`);
 
+    console.log('🔥 SUPABASE access_token:', data.session?.access_token); //para prueba de OAuth
+
     const user = await this.userRepository.findOne({ where: { email } });
 
     if (!user)
@@ -215,10 +218,98 @@ export class AuthService {
   }
 
   //? -------- OAuth --------
-  async thirdPartyAuth(
-    role: string,
-    connection: string | undefined,
-    req: any,
-    res: any,
-  ) {}
+  async thirdPartyAuth(roleParam: string, dto: ThirdPartyAuthDto) {
+    const { accessToken, name, surname, phone, profileImgUrl } = dto;
+
+    // Validar token de Supabase
+    const { data, error } = await this.supabaseClient.auth.getUser(accessToken);
+
+    if (error || !data.user) {
+      throw new BadRequestException(`⚠️ Token inválido o expirado`);
+    }
+
+    const supabaseUser = data.user;
+    const email = supabaseUser.email;
+
+    if (!email) {
+      throw new BadRequestException(`⚠️ El usuario no tiene un email válido`);
+    }
+
+    // Normalizar rol para que coincida con el enum
+    let role: Role;
+    if (roleParam === 'client') role = Role.CLIENT;
+    else if (roleParam === 'provider') role = Role.PROVIDER;
+    else {
+      throw new BadRequestException(`⚠️ Rol inválido`);
+    }
+
+    // Buscar usuario en la DB
+    let user = await this.userRepository.findOne({ where: { email } });
+
+    // FORMATEO DE CAMPOS
+    const formattedName =
+      name ?? this.capitalize(supabaseUser.user_metadata?.name || 'Usuario');
+
+    const formattedSurname =
+      surname ?? this.capitalize(supabaseUser.user_metadata?.surname ?? '');
+
+    const finalImg =
+      profileImgUrl ?? supabaseUser.user_metadata?.avatar_url ?? null;
+
+    const finalPhone = phone ?? supabaseUser.user_metadata?.phone ?? null;
+
+    // si el usuario existe, verificar rol y hacer login
+    if (user) {
+      if (user.role !== role) {
+        throw new BadRequestException(
+          `⚠️ Esta cuenta está registrada como "${user.role}". No puede iniciar sesión como "${role}".`,
+        );
+      }
+
+      const payload = {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+      };
+
+      const jwtAccessToken = this.jwtService.sign(payload);
+      const { passwordUrl, ...safeUser } = user;
+
+      return {
+        message: '✅ Inicio de sesión por terceros exitoso',
+        accessToken: jwtAccessToken,
+        user: safeUser,
+      };
+    }
+
+    // si no existe, crear nuevo usuario
+    const newUser = this.userRepository.create({
+      name: formattedName,
+      surname: formattedSurname,
+      email,
+      passwordUrl: supabaseUser.id,
+      birthDate: new Date(), // La fecha que se registrará será la actual, podrá ser editada
+      profileImgUrl: finalImg,
+      phone: finalPhone,
+      role,
+    });
+
+    user = await this.userRepository.save(newUser);
+
+    // JWT para usuarios nuevos
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const jwtAccessToken = this.jwtService.sign(payload);
+    const { passwordUrl, ...safeUser } = user;
+
+    return {
+      message: '✅ Registro por terceros exitoso',
+      accessToken: jwtAccessToken,
+      user: safeUser,
+    };
+  }
 }
