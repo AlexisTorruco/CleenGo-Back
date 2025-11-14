@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { CreateProviderDto } from './dto/create-provider.dto';
+import { RegisterProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 
 @Injectable()
 export class ProviderService {
-  create(createProviderDto: CreateProviderDto) {
+  create(registerProviderDto: RegisterProviderDto) {
     return 'This action adds a new provider';
   }
 

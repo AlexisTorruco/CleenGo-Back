@@ -14,6 +14,8 @@ import { AppointmentsModule } from './appointments/appointments.module';
 import { CategoriesModule } from './categories/categories.module';
 
 import { getTypeOrmOptions } from './config/typeorm.config';
+import { FileUploadModule } from './file-upload/file-upload.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { getTypeOrmOptions } from './config/typeorm.config';
     SuscriptionModule,
     AppointmentsModule,
     CategoriesModule,
+    FileUploadModule,
+    UserModule,
   ],
 })
 export class AppModule {}
