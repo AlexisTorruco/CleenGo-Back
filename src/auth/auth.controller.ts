@@ -76,15 +76,15 @@ export class AuthController {
     @Res() res: any,
   ) {}
 
-  // --- PRUEBA ---
-  @ApiBearerAuth() //Valida en swagger
-  @UseGuards(JwtAuthGuard, RolesGuard) //Valida el token
-  @Roles(Role.CLIENT, Role.PROVIDER) //Valida el rol
-  @Get('me')
-  getProfile(@Req() req: any) {
-    return {
-      message: '✅ Ruta protegida',
-      user: req.user, // viene de jwt.strategy.validate
-    };
-  }
+  // // --- PRUEBA ---
+  // @ApiBearerAuth() //Valida en swagger
+  // @UseGuards(JwtAuthGuard, RolesGuard) //Valida el token
+  // @Roles(Role.CLIENT, Role.PROVIDER) //Valida el rol
+  // @Get('me')
+  // getProfile(@Req() req: any) {
+  //   return {
+  //     message: '✅ Ruta protegida',
+  //     user: req.user, // viene de jwt.strategy.validate
+  //   };
+  // }
 }
