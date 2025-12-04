@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository ,Like } from 'typeorm';
 import { Provider } from './entities/provider.entity';
 import { Role } from 'src/enum/role.enum';
+import { Review } from 'src/reviews/entities/review.entity';
 @Injectable()
 export class ProviderService {
 
@@ -145,7 +146,7 @@ async remove(id: string) {
   return await query.getMany();
 } */
 
-  async filterProviders(filters: {
+async filterProviders(filters: {
   days?: string[];
   hours?: string[];
   services?: string[];
@@ -157,34 +158,25 @@ async remove(id: string) {
     .createQueryBuilder('provider')
     .leftJoinAndSelect('provider.services', 'service')
     .leftJoinAndSelect('provider.suscription', 'suscription')
-    .leftJoin('reviews', 'review', 'review.rated_id = provider.id')
+    .leftJoin(Review, 'review', 'review.rated_id = provider.id')
     .where('provider.isActive = true');
 
-  // ------------------------
-  // FILTRO POR DIAS
-  // ------------------------
-  if (days && days.length > 0) {
-    query.andWhere('provider.days && :days', { days });
-    // operador && = array overlap (PostgreSQL)
+  // --------- DIAS ----------
+  if (days?.length) {
+    query.andWhere('provider.days && ARRAY[:...days]::text[]', { days });
   }
 
-  // ------------------------
-  // FILTRO POR HORARIOS
-  // ------------------------
-  if (hours && hours.length > 0) {
-    query.andWhere('provider.hours && :hours', { hours });
+  // --------- HORARIOS ----------
+  if (hours?.length) {
+    query.andWhere('provider.hours && ARRAY[:...hours]::text[]', { hours });
   }
 
-  // ------------------------
-  // FILTRO POR SERVICIOS
-  // ------------------------
-  if (services && services.length > 0) {
+  // --------- SERVICIOS ----------
+  if (services?.length) {
     query.andWhere('service.id IN (:...services)', { services });
   }
 
-  // ------------------------
-  // FILTRO POR RATING PROMEDIO
-  // ------------------------
+  // --------- RATING ----------
   if (rating) {
     query
       .addSelect('AVG(review.rating)', 'avgRating')
@@ -192,9 +184,9 @@ async remove(id: string) {
       .having('AVG(review.rating) >= :rating', { rating });
   }
 
-  const providers = await query.getMany();
-
-  return providers;
+  return query.getMany();
 }
+
+
 
 }

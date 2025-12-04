@@ -50,7 +50,7 @@ export class ProviderController {
   } */
 
     //trae a los provedores por id 
-    @Get(':id')
+  @Get(':id')
   @ApiOperation({ summary: 'Obtiene un proveedor por su ID' })
   @ApiParam({ name: 'id', description: 'ID del proveedor' })
   @ApiResponse({ status: 200, description: 'Proveedor encontrado' })
@@ -111,9 +111,15 @@ filterProviders(
   @Query('days') days?: string[],
   @Query('hours') hours?: string[],
   @Query('services') services?: string[],
-  @Query('rating') rating?: number,
+  @Query('rating') rating?: string, // siempre llega como string
 ) {
-  return this.providerService.filterProviders({ days, hours, services, rating });
+
+  return this.providerService.filterProviders({
+    days,
+    hours,
+    services,
+    rating: rating ? Number(rating) : undefined,
+  });
 }
 
 }
