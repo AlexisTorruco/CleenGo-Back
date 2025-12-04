@@ -14,6 +14,12 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "src/*": [
+        "src/*", //para que tsc resuelva tipos en desarrollo
+        "dist/*" //para que tsconfig-paths resuelva en producción
+      ]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
