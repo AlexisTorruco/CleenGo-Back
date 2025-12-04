@@ -16,13 +16,13 @@ export class ProviderService {
 ){}
 
   async findAll() {
-    return  this.serviceprovider.find({where: { isActive: true } ,relations:['category'] });
+    return  this.serviceprovider.find({where: { isActive: true }  });
   }
 
   async findOne(id:string ) {
   const provider = await this.serviceprovider.findOne({
       where: { id },
-      relations:['category','schedule']
+      //relations:['category','schedule']
     });
 
     if (!provider|| provider.isActive === false) {
