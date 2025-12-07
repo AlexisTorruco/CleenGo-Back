@@ -1,12 +1,17 @@
-import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards } from '@nestjs/common';
 import { SuscriptionPlanService } from './suscription-plan.service';
 import { CreatePlanDto } from './dto/create-suscription-plan.dto';
 import { UpdatePlanDto } from './dto/update-suscription-plan.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/enum/role.enum';
 
 @Controller('plan')
 export class SuscriptionPlanController {
   constructor(private readonly suscriptionPlanService: SuscriptionPlanService) {}
 
+  // @Roles(Role.ADMIN)
+  // @UseGuards(AuthGuard('jwt'))
   @Post()
   create(@Body() createSuscriptionPlanDto: CreatePlanDto) {
     return this.suscriptionPlanService.create(createSuscriptionPlanDto);
