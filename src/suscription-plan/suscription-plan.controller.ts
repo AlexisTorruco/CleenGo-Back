@@ -3,7 +3,7 @@ import { SuscriptionPlanService } from './suscription-plan.service';
 import { CreatePlanDto } from './dto/create-suscription-plan.dto';
 import { UpdatePlanDto } from './dto/update-suscription-plan.dto';
 
-@Controller('suscription-plan')
+@Controller('plan')
 export class SuscriptionPlanController {
   constructor(private readonly suscriptionPlanService: SuscriptionPlanService) {}
 

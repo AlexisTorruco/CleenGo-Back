@@ -1,6 +1,6 @@
 import { ApiHideProperty, ApiProperty } from "@nestjs/swagger"
 import { IsEmpty, IsNotEmpty, IsNumber, IsString } from "class-validator"
-import { Suscription } from "../entities/suscription.entity"
+import { Suscription } from "src/suscription/entities/suscription.entity"
 
 export class CreatePlanDto {
     @ApiHideProperty()
