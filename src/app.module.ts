@@ -18,6 +18,8 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { SeedModule } from './seeder/seeder.module';
 import { SuscriptionPlanModule } from './suscription-plan/suscription-plan.module';
 import { RedisModule } from './redis/redis-cache.module';
+import { DashboardCacheModule } from './Dashboard/dashboard-cache.module';
+import { DashboardCronModule } from './Dashboard/dashboard-cron.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { RedisModule } from './redis/redis-cache.module';
     SeedModule,
     SuscriptionPlanModule,
     RedisModule,
+    DashboardCacheModule,
+    DashboardCronModule,
   ],
 })
 export class AppModule {}

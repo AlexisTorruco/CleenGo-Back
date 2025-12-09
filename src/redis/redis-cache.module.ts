@@ -6,24 +6,30 @@ import Redis from 'ioredis';
   providers: [
     {
       provide: 'REDIS_CLIENT',
-      useFactory: () => {
-        const redisUrl = process.env.REDIS_URL;
+     useFactory: () => {
+  const redisUrl = process.env.REDIS_URL;
 
-        if (!redisUrl) {
-          throw new Error(
-            '❌ No se encontró la variable REDIS_URL. Asegúrate de definirla en Render o tu .env'
-          );
-        }
+  if (!redisUrl) {
+    console.log('⚠ Redis deshabilitado localmente');
+    return {
+      get: async () => null,
+      set: async () => null,
+    };
+  }
+  
+  const [host, port] = redisUrl.replace('redis://', '').split(':');
 
-        console.log('🚀 Conectando a Redis:', redisUrl);
+  return new Redis({
+    host,
+    port: Number(port),
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true,
+  });
+}
 
-        return new Redis(redisUrl, {
-          maxRetriesPerRequest: null,
-          enableReadyCheck: true,
-        });
-      },
     },
   ],
   exports: ['REDIS_CLIENT'],
 })
 export class RedisModule {}
+
