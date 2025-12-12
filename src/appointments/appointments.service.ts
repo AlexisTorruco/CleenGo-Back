@@ -201,7 +201,7 @@ export class AppointmentsService {
     return this.appointmentRepository.save(appointment);
   }
 
-  async updateStatus(id: string, status: string, authUser: any) {
+  async updateStatus(id: string, status: AppointmentStatus, authUser: any) {
       //traigo el appointment en cuestion y el usuario autenticado
     const appointment = await this.appointmentRepository.findOne({where: {id: id}});
     if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
@@ -211,6 +211,7 @@ export class AppointmentsService {
 
     if(appointment.clientId.id !== user.id || appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
     
+    appointment.status = status;
     return this.appointmentRepository.save(appointment);
   }
 

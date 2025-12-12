@@ -53,7 +53,7 @@ export class AppointmentsController {
     const user = req.user;
     
     if (
-    status === AppointmentStatus.CONFIRMEDCLIENT ||
+    status === AppointmentStatus.CONFIRMEDPROVIDER ||
     status === AppointmentStatus.COMPLETED ||
     status === AppointmentStatus.CANCELLED ||
     status === AppointmentStatus.REJECTED
