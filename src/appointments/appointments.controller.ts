@@ -1,20 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Req, Query, BadRequestException } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
 
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
   @Post()
-  create(@Body() createAppointmentDto: CreateAppointmentDto) {
-    return this.appointmentsService.create(createAppointmentDto);
+  create(@Body() createAppointmentDto: CreateAppointmentDto, @Req() req: any) {
+    const user = req.user;
+    return this.appointmentsService.create(createAppointmentDto, user);
   }
 
-  @Get()
-
+  
   //trae todas las appointments a nombre del usuario autenticado, sea proveedor o cliente
+  @Get()
   findAllUserAppointments(@Req() req: any, 
   @Query('status') status?: string,
   @Query('date') date?: string,
@@ -27,18 +29,45 @@ export class AppointmentsController {
     return this.appointmentsService.findAllUserAppointments(authUser, filters);
   }
 
+
+  //trae una cita especifica, verificando que pertenezca al usuario autenticado
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.appointmentsService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    const user = req.user;
+    return this.appointmentsService.findOne(id, user);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto) {
-    return this.appointmentsService.update(+id, updateAppointmentDto);
+  //edita la informacion de un appointment
+  @Patch('edit/:id')
+  update(
+    @Param('id') id: string, 
+    @Body() updateAppointmentDto: UpdateAppointmentDto,
+    @Req() req: any) {
+      const user = req.user;
+      return this.appointmentsService.update(id, updateAppointmentDto, user);
   }
+
+  //edita el status de un appointment
+  @Patch('status/:id')
+  updateStatus(@Param('id') id: string, @Body() status: string, @Req() req: any) {
+    const user = req.user;
+    
+    if (
+    status === AppointmentStatus.CONFIRMEDCLIENT ||
+    status === AppointmentStatus.COMPLETED ||
+    status === AppointmentStatus.CANCELLED ||
+    status === AppointmentStatus.REJECTED
+  )return this.appointmentsService.updateStatus(id, status, user);
+
+  else throw new BadRequestException('⚠️ Invalid status');
+     
+      
+  
+}
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.appointmentsService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    const user = req.user;
+    return this.appointmentsService.remove(id, user);
   }
 }

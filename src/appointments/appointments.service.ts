@@ -1,13 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { User } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
 import { filterAppointmentDto } from './dto/filter-appointment.dto';
 import { Role } from 'src/enum/role.enum';
+import { async } from 'rxjs';
+import { Service } from 'src/categories/entities/services.entity';
+import { Provider } from 'src/provider/entities/provider.entity';
 
 @Injectable()
 export class AppointmentsService {
@@ -16,10 +19,88 @@ export class AppointmentsService {
     private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Service)
+    private readonly serviceRepository: Repository<Service>,
+    @InjectRepository(Provider)
+    private readonly providerRepository: Repository<Provider>,
   ){}
-  create(createAppointmentDto: CreateAppointmentDto) {
-    return 'This action adds a new appointment';
+  async create(createAppointmentDto: CreateAppointmentDto, authUser:any) {
+
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.sub },
+    });
+
+    if (!user) throw new NotFoundException('user not found');
+
+    
+
+    const { service, date, startTime,  notes, provider, address } =
+      createAppointmentDto;
+
+      // !(categoru && appointmentDate && hour && notes && provider)
+    if (
+      !service ||
+      !date ||
+      !startTime ||
+      !notes ||
+      !provider||
+      !address
+    )
+      throw new BadRequestException('all required fields must be complete');
+
+    console.log(date);
+    //verifico que la fecha de emision sea posterior a la actual
+    const appointmentDateType = new Date(date);
+    appointmentDateType.setMinutes(
+      appointmentDateType.getMinutes() +
+        appointmentDateType.getTimezoneOffset(),
+    );
+    const today = new Date();
+    
+    if (appointmentDateType <= today)
+      throw new BadRequestException(
+    'the appointment date must be later than the current date',
+  );
+
+  //busco el servicio solicitado en la appointment y el rpoveedor
+  
+  const foundService = await this.serviceRepository.findOneBy({name: service});
+  const providerFound = await this.providerRepository.findOne({
+    where: { name: provider, role: Role.PROVIDER },
+    relations: ['category', 'schedule'],
+  });
+
+  if (!foundService) throw new NotFoundException('Category not found');
+  if (!providerFound) throw new NotFoundException('Provider not found');
+
+  if (!providerFound.services.includes(foundService)) {
+    throw new BadRequestException(
+      `El proveedor no ofrece el servicio ${service}`,
+    );
   }
+   
+  this.validateProviderWorksThatDay(providerFound, date);
+  this.validateStartHourInWorkingRange(providerFound, startTime);
+  await this.validateNoStartOverlap(providerFound.id, date, startTime);
+  
+  //CREACION DEL APPOINTMENT
+  const appointment = new Appointment();
+
+  appointment.clientId = user;
+  appointment.providerId = providerFound;
+  appointment.services = foundService;
+  appointment.date = date;
+  appointment.startHour = startTime;
+  appointment.notes = notes;
+  appointment.addressUrl = address;
+
+  await this.appointmentRepository.save(appointment);
+  return appointment;
+  }
+
+
+
+
 
   async findAllUserAppointments(authUser:any, filters:filterAppointmentDto) {
     //busco el usuario autenticado
@@ -105,29 +186,16 @@ export class AppointmentsService {
     ;
   }
 
-  async updateStatus(id: string, status: string) {
+  async updateStatus(id: string, status: string, authUser: any) {
       //traigo el appointment en cuestion y el usuario autenticado
     const appointment = await this.appointmentRepository.findOne({where: {id: id}});
-
-    const user = await this.userRepository.findOne({where: {id: idAuthUser}});
-    if (!user) throw new BadRequestException('⚠️ User not found');
     if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    if(user.role === 'client' && appointment.clientId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
-    else if(user.role === 'client'){
-      if(appointment.status === AppointmentStatus.CONFIRMEDPROVIDER || appointment.status === AppointmentStatus.COMPLETED) throw new BadRequestException('⚠️ You can not cancel this appointment');
-      appointment.status = AppointmentStatus.CANCELLED;
-    }
+    const user = await this.userRepository.findOne({where: {id: authUser.sub}});
+    if (!user) throw new BadRequestException('⚠️ User not found');
 
-    if(user.role === 'provider' && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
-    else if(user.role === 'provider'){
-      appointment.status = AppointmentStatus.REJECTED;
-    }
-    return this.appointmentRepository.save(appointment);
-
-
-   
-    appointment.status = status;
+    if(appointment.clientId.id !== user.id || appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+    
     return this.appointmentRepository.save(appointment);
   }
 
@@ -149,4 +217,64 @@ export class AppointmentsService {
   
 
   }
+
+  //----------------------HELPERS----------------------
+
+  private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
+  const day = new Date(date)
+    .toLocaleDateString('en-US', { weekday: 'long' })
+    .toLowerCase();
+
+  if (!provider.days?.includes(day)) {
+    throw new BadRequestException(`Provider does not work on ${day}`);
+  }
+}
+private validateStartHourInWorkingRange(provider: Provider, startHour: string) {
+  const start = this.timeToMinutes(startHour);
+
+  const isInside = provider.hours?.some((range) => {
+    const [from, to] = range.split('-');
+    const fromMin = this.timeToMinutes(from);
+    const toMin = this.timeToMinutes(to);
+    return start >= fromMin && start <= toMin;
+  });
+
+  if (!isInside) {
+    throw new BadRequestException(
+      `Provider is not working at ${startHour}`
+    );
+  }
+}
+private async validateNoStartOverlap(
+  providerId: string,
+  date: Date | string,
+  startHour: string,
+) {
+  const existingAppointments = await this.appointmentRepository.find({
+    where: {
+      providerId: { id: providerId },
+      date: new Date(date),
+      isActive: true,
+    },
+  });
+
+  const newStart = this.timeToMinutes(startHour);
+
+  const hasOverlap = existingAppointments.some((a) => {
+    const appointmentStart = this.timeToMinutes(a.startHour);
+    const appointmentEnd   = this.timeToMinutes(a.endHour);
+    return newStart >= appointmentStart && newStart < appointmentEnd;
+  });
+
+  if (hasOverlap) {
+    throw new BadRequestException(
+      `Provider already has an appointment at ${startHour}`
+    );
+  }
+}
+private timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
 }
