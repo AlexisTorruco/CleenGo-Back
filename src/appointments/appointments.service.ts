@@ -7,20 +7,24 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+// import { Between, Repository } from 'typeorm';
 
 import { Appointment } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+// import { InjectRepository } from '@nestjs/typeorm';
+// import { Between,  Repository } from 'typeorm';
+// import { Appointment } from './entities/appointment.entity';
+import { User } from 'src/user/entities/user.entity';
+import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
 import { filterAppointmentDto } from './dto/filter-appointment.dto';
 
-import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
+// import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
 import { Role } from 'src/enum/role.enum';
-
-import { User } from 'src/user/entities/user.entity';
 import { Service } from 'src/categories/entities/services.entity';
 import { Provider } from 'src/provider/entities/provider.entity';
 import { NodemailerService } from 'src/nodemailer/nodemailer.service';
+import { Between, Repository } from 'typeorm';
 
 @Injectable()
 export class AppointmentsService {
@@ -107,25 +111,28 @@ export class AppointmentsService {
       );
     }
 
-    // Servicio y proveedor
-    const foundService = await this.serviceRepository.findOneBy({
-      name: service,
-    });
+    //busco el servicio solicitado en la appointment y el rpoveedor
 
+    const foundService = await this.serviceRepository.findOne({
+      where: { name: service },
+      relations: ['category'],
+    });
     const providerFound = await this.providerRepository.findOne({
       where: { email: providerEmail, role: Role.PROVIDER },
-      relations: ['services'], // para validar que lo ofrezca
+      relations: ['services'],
     });
 
     if (!foundService) throw new NotFoundException('service not found');
+
     if (!providerFound) throw new NotFoundException('Provider not found');
 
-    if (
-      providerFound.services &&
-      !providerFound.services.includes(foundService)
-    ) {
+    const hasService = providerFound.services.some(
+      (providerService) => providerService.id === foundService.id,
+    );
+
+    if (!hasService) {
       throw new BadRequestException(
-        `El proveedor no ofrece el servicio ${service}`,
+        `the provider ${providerFound.name} does not offer ${service}`,
       );
     }
 
@@ -133,33 +140,8 @@ export class AppointmentsService {
     this.validateStartHourInWorkingRange(providerFound, startTime);
     await this.validateNoStartOverlap(providerFound.id, date, startTime);
 
-    // Crear appointment
+    //CREACION DEL APPOINTMENT
     const appointment = new Appointment();
-    appointment.clientId = user;
-    appointment.providerId = providerFound;
-    appointment.date = date;
-    appointment.startHour = startTime;
-    appointment.notes = notes;
-    appointment.addressUrl = address;
-
-    // Compatibilidad por si tu entidad usa `serviceId` o `services`
-    if ('serviceId' in appointment)
-      (appointment as any).serviceId = foundService;
-    if ('services' in appointment) (appointment as any).services = foundService;
-
-    await this.appointmentRepository.save(appointment);
-
-    // Email al proveedor (tu aporte + lo de tu compa)
-    const stringDate = this.formatDateDDMMYYYY(date);
-    await this.newAppointmentEmailProvider(
-      providerFound.email,
-      user.name,
-      providerFound.name,
-      foundService.name,
-      stringDate,
-      startTime,
-      address,
-    );
 
     return appointment;
   }
@@ -175,25 +157,21 @@ export class AppointmentsService {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.clientId', 'client')
       .leftJoinAndSelect('appointment.providerId', 'provider')
-      .leftJoinAndSelect('appointment.serviceId', 'service')
-      .leftJoinAndSelect('service.categoryId', 'category');
+      .leftJoinAndSelect('appointment.services', 'service');
+    // .leftJoinAndSelect('appointment.services.category', 'category');
 
-    // Unificado: que vea citas donde es cliente o proveedor
-    query.where('(client.id = :user OR provider.id = :user)', {
-      user: user.id,
-    });
-
+    //preparo la query para filtrar usando los filtros de busqueda
     if (filters.status) {
       query.andWhere('appointment.status = :status', {
         status: filters.status,
       });
     }
 
-    if (filters.category) {
-      query.andWhere('category.name = :category', {
-        category: filters.category,
-      });
-    }
+    // if (filters.category) {
+    //   query.andWhere('services.category.name = :category', {
+    //     category: filters.category,
+    //   });
+    // }
 
     if (filters.provider) {
       query.andWhere('provider.name = :provider', {
@@ -224,12 +202,10 @@ export class AppointmentsService {
       const clientAppointments = appointments.filter(
         (appointment) => appointment.clientId?.id === user.id,
       );
-
-      return { providerAppointments, clientAppointments };
-    } else {
-      const providerAppointments: Appointment[] = [];
+    } else if (user.role === Role.CLIENT) {
+      const providerAppointments = [];
       const clientAppointments = appointments.filter(
-        (appointment) => appointment.clientId?.id === user.id,
+        (appointment) => appointment.clientId.id === user.id,
       );
 
       return { providerAppointments, clientAppointments };
