@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -31,6 +31,39 @@ export class AppointmentsService {
     private readonly nodemailerService: NodemailerService,
 
   ){}
+
+  async getParticipantsOrFail(appointmentId: string) {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id: appointmentId },
+      relations: { clientId: true, providerId: true },
+      select: {
+        id: true,
+        status: true,
+        isActive: true,
+        clientId: { id: true },
+        providerId: { id: true },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('La cita no existe');
+    }
+
+    if (!appointment.isActive) {
+      throw new ForbiddenException('La cita no está activa');
+    }
+
+    if (appointment.status !== AppointmentStatus.CONFIRMEDPROVIDER) {
+      throw new ForbiddenException(
+        'El chat solo está disponible cuando la cita ha sido confirmada por el proveedor',
+      );
+    }
+
+    return {
+      clientId: appointment.clientId?.id,
+      providerId: appointment.providerId?.id,
+    };
+  }
   async create(createAppointmentDto: CreateAppointmentDto, authUser:any) {
 
     const user = await this.userRepository.findOne({
