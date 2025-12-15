@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
   Min,
@@ -13,15 +14,16 @@ export class RegisterProviderDto extends RegisterUserDto {
     example: ['Monday', 'Tuesday', 'Wednesday'],
     description: 'Días de disponibilidad del proveedor',
   })
-  @IsNotEmpty({ each: true }) // Validar que cada elemento no esté vacío
+  @IsOptional()
   @IsString({ each: true }) // Validar que cada elemento sea una cadena
   days: string[];
 
+  
   @ApiProperty({
     example: ['09:00-12:00', '14:00-18:00'],
     description: 'Horas de disponibilidad del proveedor',
   })
-  @IsNotEmpty({ each: true })
+  @IsOptional()
   @IsString({ each: true })
   hours: string[];
 
@@ -30,7 +32,8 @@ export class RegisterProviderDto extends RegisterUserDto {
       'Cuento con más de 10 años de experiencia en limpieza residencial y comercial.',
     description: 'Descripción sobre el proveedor',
   })
-  @IsNotEmpty()
+  
+  @IsOptional()
   @IsString()
   @MinLength(20)
   @MaxLength(250)

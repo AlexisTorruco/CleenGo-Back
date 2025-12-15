@@ -27,7 +27,7 @@ export class AuthService {
 
   //? -------- Registro de cliente --------
   async clientSignUp(registerUserDto: RegisterUserDto) {
-    const { name, surname, email, password, birthDate, profileImgUrl, phone } =
+    const { name, surname, email, password, birthDate } =
       registerUserDto;
 
     const existingUser = await this.userRepository.findOne({
@@ -47,7 +47,7 @@ export class AuthService {
           role: 'client',
           name,
           surname,
-          phone,
+         
         },
       },
     });
@@ -78,8 +78,7 @@ export class AuthService {
       email,
       passwordUrl: supabaseUser.id,
       birthDate: birthDateValue,
-      profileImgUrl,
-      phone,
+      
       role: Role.CLIENT,
     });
 
@@ -108,11 +107,7 @@ export class AuthService {
       email,
       password,
       birthDate,
-      profileImgUrl,
-      phone,
-      days,
-      hours,
-      about,
+     
     } = registerProviderDto;
 
     const existingUser = await this.userRepository.findOne({
@@ -132,7 +127,6 @@ export class AuthService {
           role: 'provider',
           name,
           surname,
-          phone,
         },
       },
     });
@@ -161,11 +155,7 @@ export class AuthService {
       email,
       passwordUrl: supabaseProvider.id,
       birthDate: birthDateValue,
-      profileImgUrl,
-      phone,
-      days,
-      hours,
-      about,
+  
       role: Role.PROVIDER,
     });
 
