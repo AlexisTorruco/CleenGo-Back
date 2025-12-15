@@ -1,6 +1,6 @@
 import { Provider } from "src/provider/entities/provider.entity";
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
-import { Plan } from "./plan.entity";
+import { Plan } from "src/suscription-plan/entities/suscription-plan.entity";
 
 @Entity('suscription')
 export class Suscription {
@@ -20,7 +20,8 @@ export class Suscription {
 
    @Column({type: 'boolean', default: false})
    paymentStatus: boolean;
-    
+   
    @Column({type: 'boolean', default: true})
    isActive: boolean;
+
 }
