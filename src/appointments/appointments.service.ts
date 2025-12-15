@@ -159,12 +159,15 @@ export class AppointmentsService {
     // .leftJoinAndSelect('appointment.serviceId', 'service')
     // .leftJoinAndSelect('appointment.serviceId.categoryId', 'category');
 
-    //filtro usando el usurio autenticado
-    if (user.role === Role.CLIENT) {
-      query.where('client.id = :user', { user: user.id });
-    } else if (user.role === Role.PROVIDER) {
-      query.where('provider.id = :user', { user: user.id });
-    }
+    //* filtro usando el usurio autenticado
+    // if (user.role === Role.CLIENT) {
+    //   query.where('client.id = :user', { user: user.id });
+    // } else if (user.role === Role.PROVIDER) {
+    //   query.where('provider.id = :user', { user: user.id });
+    // }
+    query.where('(client.id = :user OR provider.id = :user)', {
+      user: user.id,
+    });
 
     //preparo la query para filtrar usando los filtros de busqueda
     if (filters.status) {

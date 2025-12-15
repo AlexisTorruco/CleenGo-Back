@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   Patch,
+  Req,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import {
@@ -16,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -74,5 +76,22 @@ export class ChatController {
     @Request() req: any,
   ) {
     return this.chatService.markAsRead(messageId, req.user.id);
+  }
+
+  @Get('unread-count')
+  @ApiOperation({
+    summary: 'Contar mensajes no leídos del usuario autenticado',
+    description: 'Cuenta todos los mensajes donde receiver=user y read=false.',
+  })
+  @ApiOkResponse({ description: 'Conteo obtenido correctamente' })
+  async getUnreadCount(@Request() req: any) {
+    const userId = req.user?.id;
+    return this.chatService.getUnreadCount(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('unread-summary')
+  getUnreadSummary(@Req() req: any) {
+    return this.chatService.getUnreadSummary(req.user.id);
   }
 }

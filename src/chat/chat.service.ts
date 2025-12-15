@@ -89,7 +89,7 @@ export class ChatService {
           id: true,
         },
       },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'ASC' },
     });
   }
 
@@ -162,5 +162,44 @@ export class ChatService {
       message: `Mensajes marcados como leídos: ${updatedCount}`,
       updatedCount,
     };
+  }
+
+  async getUnreadCount(userId: string) {
+    const total = await this.chatMessageRepository.count({
+      where: {
+        receiver: { id: userId } as any,
+        read: false,
+      },
+    });
+
+    return { total };
+  }
+
+  async getUnreadSummary(userId: string) {
+    const rows = await this.chatMessageRepository
+      .createQueryBuilder('m')
+      .innerJoin('m.sender', 'sender')
+      .innerJoin('m.appointment', 'appointment')
+      .where('m.receiverId = :userId', { userId })
+      .andWhere('m.read = false')
+      .select([
+        'appointment.id AS appointmentId',
+        'sender.id AS senderId',
+        'sender.name AS senderName',
+        'sender.surname AS senderSurname',
+        'COUNT(m.id)::int AS count',
+      ])
+      .groupBy('appointment.id, sender.id')
+      .getRawMany();
+
+    return rows.map((r) => ({
+      appointmentId: r.appointmentid,
+      otherUser: {
+        id: r.senderid,
+        name: r.sendername,
+        surname: r.sendersurname,
+      },
+      count: r.count,
+    }));
   }
 }
