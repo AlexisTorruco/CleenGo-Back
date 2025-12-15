@@ -8,9 +8,9 @@ export class AppointmentsCronService {
         private readonly appointmentsService: AppointmentsService
     ){}
 
-    @Cron(CronExpression.EVERY_5_MINUTES)
-    async handleAppointmentsUpdate() {
-        console.log('Cron: enviando emails de citas pendientes...');
-        await this.appointmentsService.validatePendingAppointments();
-    }
+    // @Cron(CronExpression.EVERY_5_MINUTES)
+//     async handleAppointmentsUpdate() {
+//         console.log('Cron: enviando emails de citas pendientes...');
+//         await this.appointmentsService.validatePendingAppointments();
+//     }
 }
