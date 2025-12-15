@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,9 +11,14 @@ import { Role } from 'src/enum/role.enum';
 import { async } from 'rxjs';
 import { Service } from 'src/categories/entities/services.entity';
 import { Provider } from 'src/provider/entities/provider.entity';
+import { NodemailerService } from 'src/nodemailer/nodemailer.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AppointmentsService {
+  // 🔹 NUEVO: logger para mensajes de nodemailer / recovery
+    private readonly logger = new Logger(AppointmentsService.name);
+  
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
@@ -23,6 +28,8 @@ export class AppointmentsService {
     private readonly serviceRepository: Repository<Service>,
     @InjectRepository(Provider)
     private readonly providerRepository: Repository<Provider>,
+    private readonly nodemailerService: NodemailerService,
+
   ){}
   async create(createAppointmentDto: CreateAppointmentDto, authUser:any) {
 
@@ -37,9 +44,9 @@ export class AppointmentsService {
     const { service, date, startTime,  notes, providerEmail, address } =
       createAppointmentDto;
 
-      // !(categoru && appointmentDate && hour && notes && provider)
+    
     if (
-     //agregar service 
+      !service ||
       !date ||
       !startTime ||
       !notes ||
@@ -63,13 +70,13 @@ export class AppointmentsService {
 
   //busco el servicio solicitado en la appointment y el rpoveedor
   
-  // const foundService = await this.serviceRepository.findOneBy({name: service});
+  const foundService = await this.serviceRepository.findOneBy({name: service});
   const providerFound = await this.providerRepository.findOne({
     where: { email: providerEmail, role: Role.PROVIDER },
     // relations: ['services'],
   });
 
-  // if (!foundService) throw new NotFoundException('service not found');
+  if (!foundService) throw new NotFoundException('service not found');
   if (!providerFound) throw new NotFoundException('Provider not found');
 
   // if (!providerFound.services.includes(foundService)) {
@@ -87,13 +94,32 @@ export class AppointmentsService {
 
   appointment.clientId = user;
   appointment.providerId = providerFound;
-  // appointment.services = foundService;
+  appointment.services = foundService;
   appointment.date = date;
   appointment.startHour = startTime;
   appointment.notes = notes;
   appointment.addressUrl = address;
 
+  const stringDate = this.formatDateDDMMYYYY(date);
+  
   await this.appointmentRepository.save(appointment);
+  await this.newAppointmentEmailProvider(
+  //    email:string,
+  providerFound.email,
+  // clientName:string,
+  user.name,
+  // providerName:string,
+  providerFound.name,
+  // serviceName:string,
+  foundService.name,
+  // date:string,
+  stringDate,
+  // time:string,
+  startTime,
+  // address:string
+  address
+  );
+  
   return appointment;
   }
 
@@ -263,9 +289,30 @@ export class AppointmentsService {
 
   }
 
+  async validatePendingAppointments() {
+    const providers = await this.providerRepository.find({where: {isActive: true}});
+
+    providers.forEach(async provider => {
+      const providerId = provider.id;
+      const appointments = await this.appointmentRepository.count({
+        where: {
+          providerId: { id: providerId },
+          status: AppointmentStatus.PENDING,
+        },
+      })
+    if (appointments > 0) {
+      await this.pendingAppointmentEmail(provider.email, provider.name, appointments);
+    }
+    });
+    };
+    
+
+
+  
+
   //----------------------HELPERS----------------------
 
-  private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
+private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
   const paseDate = new Date(date);
   // Forzamos el horario al mediodía
   paseDate.setHours(12, 0, 0, 0);
@@ -329,4 +376,206 @@ private timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
+private formatDateDDMMYYYY(date: Date | string): string {
+  const d = new Date(date);
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  return `${day}-${month}-${year}`;
+}
+
+
+//---------Nodemailer helper (creacion de un appointment)-------
+private async newAppointmentEmailProvider (
+  email:string,
+  clientName:string,
+  providerName:string,
+  serviceName:string,
+  date:string,
+  time:string,
+  address:string
+){ 
+  const subject = 'Tienes una nueva solicitud de turno en CleenGo🧼 ';
+  const html = `
+  <!DOCTYPE html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Nuevo servicio asignado</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: #27ae60; padding: 20px; color: #ffffff;">
+                  <h1 style="margin: 0; font-size: 22px;">📢 Nuevo servicio asignado</h1>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 24px; color: #333333;">
+                  <p style="font-size: 16px; margin-top: 0;">
+                    Hola <strong>${providerName}</strong>,
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Se te ha asignado un <strong>nuevo servicio</strong>.  
+                    A continuación encontrarás los detalles:
+                  </p>
+
+                  <!-- Details -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fb; border-radius: 6px; margin: 20px 0;">
+                    <tr>
+                      <td style="padding: 16px;">
+                        <p style="margin: 4px 0;"><strong>🧾 Servicio:</strong> ${serviceName}</p>
+                        <p style="margin: 4px 0;"><strong>👤 Cliente:</strong> ${clientName}</p>
+                        <p style="margin: 4px 0;"><strong>📅 Fecha:</strong> ${date}</p>
+                        <p style="margin: 4px 0;"><strong>⏰ Horario:</strong> ${time}</p>
+                        <p style="margin: 4px 0;"><strong>📍 Dirección:</strong> ${address}</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <p style="font-size: 15px;">
+                    Por favor, asegurate de presentarte en la fecha y horario indicados.
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Si por algún motivo no podés realizar el servicio, comunicate lo antes posible a través de la plataforma.
+                  </p>
+
+                  <p style="margin-top: 24px;">
+                    Gracias por tu compromiso.<br />
+                    <strong>Equipo de Coordinación</strong>
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+  const text = `¡Hola, ${providerName}!
+Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
+
+    try {
+      await this.nodemailerService.sendMail({
+        to:email,
+        subject,
+        html,
+        text,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
+      );
+    }
+
+}
+//---------Nodemailer helper (mail recordatorio de un appointment pendiente)-------
+private async pendingAppointmentEmail(
+  email:string, 
+  providerName:string, 
+  pendingCount: number,
+  ){
+  const html = `
+    <!DOCTYPE html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Acción requerida – Servicios pendientes</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+
+              <!-- Header -->
+              <tr>
+                <td style="background: #eb5757; padding: 20px; color: #ffffff;">
+                  <h1 style="margin: 0; font-size: 22px;">
+                    ⚠️ Acción requerida – Confirmá tus servicios
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 24px; color: #333333;">
+                  <p style="font-size: 16px; margin-top: 0;">
+                    Hola <strong>${providerName}</strong>,
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Tenés <strong>${pendingCount}</strong> servicio${pendingCount > 1 ? 's' : ''} 
+                    pendiente${pendingCount > 1 ? 's' : ''} de <strong>confirmación</strong>.
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Por favor, confirmá o rechazá cada servicio para asegurar una correcta coordinación.
+                  </p>
+
+                 
+
+                  <p style="font-size: 14px; color: #555;">
+                    ⚠️ Si no se confirma el servicio con antelación, podría ser reasignado.
+                  </p>
+
+                  <p style="margin-top: 24px;">
+                    Gracias por tu rápida respuesta.<br />
+                    <strong>Equipo de Coordinación</strong>
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+
+  const text = `¡Hola, ${providerName}! Tienes ${pendingCount} servicio${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} de confirmación.`;
+
+    try {
+      await this.nodemailerService.sendMail({
+        to:email,
+        subject:'Acción requerida – Servicios pendientes',
+        html,
+        text,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
+      );
+    }
+}
 }
