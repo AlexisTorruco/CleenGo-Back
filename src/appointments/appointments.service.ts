@@ -44,9 +44,9 @@ export class AppointmentsService {
     const { service, date, startTime,  notes, providerEmail, address } =
       createAppointmentDto;
 
-      // !(categoru && appointmentDate && hour && notes && provider)
+    
     if (
-     !service ||
+      !service ||
       !date ||
       !startTime ||
       !notes ||
@@ -100,6 +100,8 @@ export class AppointmentsService {
   appointment.notes = notes;
   appointment.addressUrl = address;
 
+  const stringDate = this.formatDateDDMMYYYY(date);
+  
   await this.appointmentRepository.save(appointment);
   await this.newAppointmentEmailProvider(
   //    email:string,
@@ -111,7 +113,7 @@ export class AppointmentsService {
   // serviceName:string,
   foundService.name,
   // date:string,
-  date.toLocaleDateString("es-ES"),
+  stringDate,
   // time:string,
   startTime,
   // address:string
@@ -373,6 +375,17 @@ private timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
 }
+
+private formatDateDDMMYYYY(date: Date | string): string {
+  const d = new Date(date);
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  return `${day}-${month}-${year}`;
+}
+
 
 //---------Nodemailer helper (creacion de un appointment)-------
 private async newAppointmentEmailProvider (
