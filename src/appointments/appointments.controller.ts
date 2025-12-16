@@ -8,10 +8,14 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Role } from 'src/enum/role.enum';
 import { Roles } from 'src/decorators/roles.decorator';
 import { statusDto } from './dto/status.dto';
+import { ApiBearerAuth } from '@nestjs/swagger';
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
+
 
   @UseGuards(JwtAuthGuard)
   @Post()

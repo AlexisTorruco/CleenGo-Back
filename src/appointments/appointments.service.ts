@@ -1,17 +1,30 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+// CleenGo-Back/src/appointments/appointments.service.ts
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+// import { Between, Repository } from 'typeorm';
+
+import { Appointment } from './entities/appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Between,  Repository } from 'typeorm';
-import { Appointment } from './entities/appointment.entity';
+// import { InjectRepository } from '@nestjs/typeorm';
+// import { Between,  Repository } from 'typeorm';
+// import { Appointment } from './entities/appointment.entity';
 import { User } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
 import { filterAppointmentDto } from './dto/filter-appointment.dto';
+
+// import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
 import { Role } from 'src/enum/role.enum';
 import { Service } from 'src/categories/entities/services.entity';
 import { Provider } from 'src/provider/entities/provider.entity';
 import { NodemailerService } from 'src/nodemailer/nodemailer.service';
-import { JwtService } from '@nestjs/jwt';
+import { Between, Repository } from 'typeorm';
 
 @Injectable()
 export class AppointmentsService {
@@ -107,6 +120,7 @@ export class AppointmentsService {
     where: { email: providerEmail, role: Role.PROVIDER },
     relations: ['services'],
   });
+  console.log(providerFound);
 
   if (!foundService) throw new NotFoundException('service not found');
 
@@ -393,7 +407,7 @@ private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
   paseDate.setHours(12, 0, 0, 0);
   
     let day = paseDate
-    .toLocaleDateString('en-US', { weekday: 'long' })
+    .toLocaleDateString('es-ES', { weekday: 'long' })
     .toUpperCase();
  
     
@@ -405,6 +419,7 @@ private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
 }
 private validateStartHourInWorkingRange(provider: Provider, startHour: string) {
   const start = this.timeToMinutes(startHour);
+  console.log(provider.hours)
 
   const isInside = provider.hours?.some((range) => {
     const [from, to] = range.split('-');
