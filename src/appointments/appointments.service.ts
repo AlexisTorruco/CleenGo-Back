@@ -66,7 +66,7 @@ export class AppointmentsService {
 
     if (appointment.status !== AppointmentStatus.CONFIRMEDPROVIDER) {
       throw new ForbiddenException(
-        'El chat solo est├б disponible cuando la cita ha sido confirmada por el proveedor',
+        'El chat solo está disponible cuando la cita ha sido confirmada por el proveedor',
       );
     }
 
@@ -137,7 +137,7 @@ if (!hasService) {
    
   this.validateProviderWorksThatDay(providerFound, date);
   this.validateStartHourInWorkingRange(providerFound, startTime);
-  await this.validateNoStartOverlap(providerFound.id, date, startTime);
+  this.validateNoStartOverlap(providerFound.id, date, startTime);
   
   //CREACION DEL APPOINTMENT
   const appointment = new Appointment();
@@ -153,7 +153,7 @@ if (!hasService) {
   const stringDate = this.formatDateDDMMYYYY(date);
   
   await this.appointmentRepository.save(appointment);
-  await this.newAppointmentEmailProvider(
+  this.newAppointmentEmailProvider(
   //    email:string,
   providerFound.email,
   // clientName:string,
@@ -376,7 +376,7 @@ if (!hasService) {
       });
 
       if (appointments.length > 0) {
-        await this.upcommingAppointmentProvider(
+        this.upcommingAppointmentProvider(
           provider.name,
           provider.email,
           appointments,
@@ -402,7 +402,7 @@ if (!hasService) {
       });
 
       if (appointments.length > 0) {
-        await this.upcommingAppointmentClient(
+        this.upcommingAppointmentClient(
           client.name,
           client.email,
           appointments,
@@ -596,7 +596,7 @@ private async newAppointmentEmailProvider (
 Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
 
     try {
-      await this.nodemailerService.sendMail({
+      this.nodemailerService.sendMail({
         to:email,
         subject,
         html,
@@ -685,7 +685,7 @@ private async pendingAppointmentEmail(
   const text = `¡Hola, ${providerName}! Tienes ${pendingCount} servicio${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} de confirmación.`;
 
     try {
-      await this.nodemailerService.sendMail({
+      this.nodemailerService.sendMail({
         to:email,
         subject:'Acción requerida – Servicios pendientes',
         html,
@@ -779,7 +779,7 @@ private async upcommingAppointmentProvider (providerName:string, providerEmail:s
   `;
   const text = `Hola ${providerName}, te recordamos que manana tenes un servicio. Por favor, asegurate de presentarte en la fecha y horario indicados. Gracias por tu compromiso.`
   try{
-    await this.nodemailerService.sendMail({
+    this.nodemailerService.sendMail({
       to:providerEmail,
       subject,
       html,
@@ -872,7 +872,7 @@ Te recordamos que mañana tienes programado${upcommingAppointments.length > 1 ? 
 
 
 try{
-  await this.nodemailerService.sendMail({
+  this.nodemailerService.sendMail({
     to: clientEmail,
     subject: subject,
     html: html,
