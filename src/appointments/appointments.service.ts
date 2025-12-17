@@ -134,10 +134,10 @@ if (!hasService) {
     `the provider ${providerFound.name} does not offer ${service}`,
   );
 }
-   
+  
   this.validateProviderWorksThatDay(providerFound, date);
   this.validateStartHourInWorkingRange(providerFound, startTime);
-  this.validateNoStartOverlap(providerFound.id, appointmentDateType, startTime);
+  await this.validateNoStartOverlap(providerFound.id, appointmentDateType, startTime);
   
   //CREACION DEL APPOINTMENT
   const appointment = new Appointment();
@@ -257,6 +257,64 @@ if (!hasService) {
    
   
   }
+
+    async adminFindAllAppointments( filters:filterAppointmentDto) {
+    
+    console.log(filters);
+
+    //traigo todas las appointments
+    const query = this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.clientId', 'client')
+      .leftJoinAndSelect('appointment.providerId', 'provider')
+      .leftJoinAndSelect('appointment.services', 'service')
+      // .leftJoinAndSelect('appointment.services.category', 'category');
+
+
+    //preparo la query para filtrar usando los filtros de busqueda
+    if (filters.status) {
+      query.andWhere('appointment.status = :status', {
+        status: filters.status,
+      });
+    }
+
+    if (filters.category) {
+      query.andWhere('services.category.name = :category', {
+        category: filters.category,
+      });
+    }
+
+    //el filtro por proveedor contratado que solo sera para el cliente
+    if (filters.provider) {
+      query.andWhere('provider.name = :provider', {
+        provider: filters.provider,
+      });
+    }
+
+    //el filtro por cliente es solo para el proveedor
+    if (filters.client) {
+      query.andWhere('client.name = :client', {
+        client: filters.client,
+      });
+    }
+
+    //el filtro por fecha
+    if (filters.date) {
+
+      query.andWhere('appointment.date = :date', {
+        date: filters.date,
+      });
+    }
+
+    const totalAppointments = query.orderBy('appointment.date', 'DESC');
+
+  
+    return totalAppointments;
+    }
+
+   
+  
+  
 
   async findOne(id: string, authUser) {
     const user = await this.userRepository.findOne({where: {id: authUser.id}});
