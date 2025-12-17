@@ -15,7 +15,7 @@ export class NodemailerService {
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
 
     if (!apiKey) {
-      throw new Error('RESEND_API_KEY no está definida');
+      throw new Error('RESEND_API_KEY is missing');
     }
 
     this.resend = new Resend(apiKey);
@@ -29,14 +29,20 @@ export class NodemailerService {
   }) {
     const fromName =
       this.configService.get<string>('MAIL_FROM_NAME') ?? 'CleenGo';
-    const fromAddress =
-      this.configService.get<string>('MAIL_FROM_ADDRESS') ??
-      'onboarding@resend.dev';
+    const fromAddress = this.configService.get<string>('MAIL_FROM_ADDRESS');
+
+    // ✅ clave: no permitimos fallback a gmail
+    if (!fromAddress) {
+      this.logger.error('MAIL_FROM_ADDRESS is missing');
+      throw new InternalServerErrorException('Email sender not configured');
+    }
+
+    const from = `"${fromName}" <${fromAddress}>`;
 
     try {
       const { data, error } = await this.resend.emails.send({
-        from: `${fromName} <${fromAddress}>`,
-        to: [options.to],
+        from,
+        to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text,
@@ -44,16 +50,14 @@ export class NodemailerService {
 
       if (error) {
         this.logger.error(`❌ Resend error: ${error.message}`);
-        throw error;
+        throw new Error(error.message);
       }
 
-      this.logger.log(
-        `📧 Email enviado (Resend) a ${options.to}. id: ${data?.id}`,
-      );
+      this.logger.log(`📧 Email enviado a ${options.to}. Id: ${data?.id}`);
       return data;
     } catch (err: any) {
       this.logger.error(
-        `❌ Error enviando email (Resend) a ${options.to}: ${err?.message}`,
+        `❌ Error enviando email (Resend) a ${options.to}: ${err.message}`,
       );
       throw new InternalServerErrorException(
         'No se pudo enviar el correo. Intenta más tarde.',
