@@ -1,37 +1,26 @@
-//CleenGo-Back/src/nodemailer/nodemailer.service.ts
 import {
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class NodemailerService {
   private readonly logger = new Logger(NodemailerService.name);
-
-  // Transporter de Nodemailer (la “conexión” al servidor SMTP)
-  private readonly transporter: nodemailer.Transporter;
+  private readonly resend: Resend;
 
   constructor(private readonly configService: ConfigService) {
-    const host = this.configService.get<string>('MAIL_HOST');
-    const port = this.configService.get<number>('MAIL_PORT');
-    const user = this.configService.get<string>('MAIL_USER');
-    const pass = this.configService.get<string>('MAIL_PASSWORD');
+    const apiKey = this.configService.get<string>('RESEND_API_KEY');
 
-    this.transporter = nodemailer.createTransport({
-      host, // smtp.gmail.com
-      port, // 587
-      secure: port === 465, // true: SSL/TLS, false: STARTTLS
-      auth: {
-        user, // MAIL_USER
-        pass, // MAIL_PASSWORD
-      },
-    });
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY no está definida');
+    }
+
+    this.resend = new Resend(apiKey);
   }
 
-  // Método genérico para enviar correos
   async sendMail(options: {
     to: string;
     subject: string;
@@ -40,28 +29,31 @@ export class NodemailerService {
   }) {
     const fromName =
       this.configService.get<string>('MAIL_FROM_NAME') ?? 'CleenGo';
-
     const fromAddress =
       this.configService.get<string>('MAIL_FROM_ADDRESS') ??
-      this.configService.get<string>('MAIL_USER');
+      'onboarding@resend.dev';
 
     try {
-      const info = await this.transporter.sendMail({
-        from: `"${fromName}" <${fromAddress}>`,
-        to: options.to,
+      const { data, error } = await this.resend.emails.send({
+        from: `${fromName} <${fromAddress}>`,
+        to: [options.to],
         subject: options.subject,
-        text: options.text,
         html: options.html,
+        text: options.text,
       });
 
-      this.logger.log(
-        `📧 Email enviado a ${options.to}. MessageId: ${info.messageId}`,
-      );
+      if (error) {
+        this.logger.error(`❌ Resend error: ${error.message}`);
+        throw error;
+      }
 
-      return info;
-    } catch (error) {
+      this.logger.log(
+        `📧 Email enviado (Resend) a ${options.to}. id: ${data?.id}`,
+      );
+      return data;
+    } catch (err: any) {
       this.logger.error(
-        `❌ Error enviando email a ${options.to}: ${error.message}`,
+        `❌ Error enviando email (Resend) a ${options.to}: ${err?.message}`,
       );
       throw new InternalServerErrorException(
         'No se pudo enviar el correo. Intenta más tarde.',
