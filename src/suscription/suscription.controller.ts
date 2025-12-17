@@ -1,4 +1,3 @@
-
 import {
   Controller,
   Post,
@@ -51,12 +50,16 @@ export class SuscriptionController {
           throw new BadRequestException('No email in session');
         }
 
-        const provider = await this.subscriptionService.findProviderByEmail(email);
+        const provider =
+          await this.subscriptionService.findProviderByEmail(email);
         if (!provider) {
           throw new NotFoundException('Provider not found');
         }
 
-        const subscription = await this.subscriptionService.findSubscriptionByProviderId(provider.id);
+        const subscription =
+          await this.subscriptionService.findSubscriptionByProviderId(
+            provider.id,
+          );
 
         return {
           success: true,
@@ -109,7 +112,7 @@ export class SuscriptionController {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      
+
       try {
         await this.subscriptionService.confirmPayment(session);
         console.log('✅ Pago confirmado en BD');
