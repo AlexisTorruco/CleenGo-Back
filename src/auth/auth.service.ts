@@ -1,3 +1,4 @@
+//CleenGo-Back/src/auth/auth.service.ts
 import {
   BadRequestException,
   Inject,
@@ -116,7 +117,7 @@ export class AuthService {
     const { passwordUrl, ...safeUser } = savedUser;
 
     // 🔹 NUEVO: enviar correo de bienvenida
-    this.sendWelcomeEmail(safeUser.email, safeUser.name, safeUser.role);
+    await this.sendWelcomeEmail(safeUser.email, safeUser.name, safeUser.role);
 
     return {
       message: '✅ Usuario cliente registrado exitosamente',
@@ -189,7 +190,7 @@ export class AuthService {
     const { passwordUrl, ...safeProvider } = savedProvider;
 
     // 🔹 NUEVO: correo de bienvenida para proveedor
-    this.sendWelcomeEmail(
+    await this.sendWelcomeEmail(
       safeProvider.email,
       safeProvider.name,
       safeProvider.role,
@@ -316,6 +317,7 @@ export class AuthService {
 
     try {
       user = await this.userRepository.save(newUser);
+      await this.sendWelcomeEmail(user.email, user.name, user.role);
     } catch (err: any) {
       // Si falla por email duplicado (error 23505) → recuperamos el user y hacemos login
       if (err.code === '23505') {
@@ -422,12 +424,14 @@ export class AuthService {
 Gracias por registrarte como ${roleLabel} en CleenGo.`;
 
     try {
-      this.nodemailerService.sendMail({
+      await this.nodemailerService.sendMail({
         to,
         subject,
         html,
         text,
       });
+
+      this.logger.log(`✅ Email de bienvenida enviado a ${to}`);
     } catch (error: any) {
       this.logger.error(
         `❌ Error enviando email de bienvenida a ${to}: ${error.message}`,
@@ -459,12 +463,13 @@ Gracias por registrarte como ${roleLabel} en CleenGo.`;
       type: 'password-reset',
     };
 
-    const expiresIn = '30m';
+    const expiresIn = '1m';
     const token = this.jwtService.sign(payload, { expiresIn });
 
-    const expirationTime = 30; // minutos (para el texto del mail)
+    const expirationTime = 1; // minutos (para el texto del mail)
 
-    const frontUrl = this.configService.get<string>('FRONTEND_URL');
+    const frontUrl = this.configService.get<string>('FRONT_URL');
+
     const resetUrl = `${frontUrl}/reset-password?token=${token}`;
 
     const subject = 'Restablecer tu contraseña en CleenGo 🔐';
@@ -506,12 +511,13 @@ Si no fuiste tú, puedes ignorar este correo. El enlace expira en ${expirationTi
     `;
 
     try {
-      this.nodemailerService.sendMail({
+      await this.nodemailerService.sendMail({
         to: user.email,
         subject,
         html,
         text,
       });
+      this.logger.log(`✅ Email reset enviado a ${user.email}`);
     } catch (error: any) {
       this.logger.error(
         `❌ Error enviando email de restablecimiento a ${user.email}: ${error.message}`,
