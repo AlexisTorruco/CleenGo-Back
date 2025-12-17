@@ -463,12 +463,13 @@ Gracias por registrarte como ${roleLabel} en CleenGo.`;
       type: 'password-reset',
     };
 
-    const expiresIn = '30m';
+    const expiresIn = '1m';
     const token = this.jwtService.sign(payload, { expiresIn });
 
-    const expirationTime = 30; // minutos (para el texto del mail)
+    const expirationTime = 1; // minutos (para el texto del mail)
 
-    const frontUrl = this.configService.get<string>('FRONTEND_URL');
+    const frontUrl = this.configService.get<string>('FRONT_URL');
+
     const resetUrl = `${frontUrl}/reset-password?token=${token}`;
 
     const subject = 'Restablecer tu contraseña en CleenGo 🔐';
