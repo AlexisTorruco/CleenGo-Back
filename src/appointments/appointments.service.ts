@@ -843,7 +843,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                         (a) => `
                         <tr>
                           <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
-                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services.name}</strong></p>
                             <p style="margin: 2px 0;">👤 Cliente: ${a.clientId.name}</p>
                             <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
                             <p style="margin: 2px 0;">📍 ${a.addressUrl}</p>
@@ -939,7 +939,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                         (a) => `
                         <tr>
                           <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
-                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services.name}</strong></p>
                             <p style="margin: 2px 0;">👤 Proveedor: ${a.providerId.name}</p>
                             <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
                           </td>
