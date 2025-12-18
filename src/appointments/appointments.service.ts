@@ -451,9 +451,9 @@ export class AppointmentsService {
           status: AppointmentStatus.CONFIRMEDPROVIDER,
           providerId: { id: providerId },
         },
-        relations: ['client', 'provider', 'service'],
+        relations: ['clientId', 'providerId', 'services'],
       });
-
+      
       if (appointments.length > 0) {
         this.upcommingAppointmentProvider(
           provider.name,
@@ -477,7 +477,7 @@ export class AppointmentsService {
           status: AppointmentStatus.CONFIRMEDPROVIDER,
           clientId: { id: clientId },
         },
-        relations: ['client', 'provider', 'service'],
+        relations: ['clientId', 'providerId', 'services'],
       });
 
       if (appointments.length > 0) {
@@ -596,10 +596,12 @@ export class AppointmentsService {
 
     const start = new Date(now);
     start.setDate(start.getDate() + 1);
+    
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(start);
     end.setHours(23, 59, 59, 999);
+    
 
     return { start, end };
   }

@@ -14,7 +14,7 @@ export class DashboardCronService {
   ) {}
 
   // Corre cada 5 minutos
-  @Cron(CronExpression.EVERY_5_SECONDS)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleDashboardUpdate() {
     try {
       this.logger.log('Cron: Actualizando dashboard...');
