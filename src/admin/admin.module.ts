@@ -1,14 +1,22 @@
+// CleenGo-Back/src/admin/admin.module.ts
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { User } from 'src/user/entities/user.entity';
-import { DashboardCacheService } from 'src/Dashboard/dashboard-cache.service';
-import { DashboardCronService } from 'src/Dashboard/dashboard-cron.service';
+import { Provider } from 'src/provider/entities/provider.entity';
+import { DashboardCacheModule } from 'src/Dashboard/dashboard-cache.module';
+import { Suscription } from 'src/suscription/entities/suscription.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
+  imports: [
+    TypeOrmModule.forFeature([User, Provider, Suscription]),
+    DashboardCacheModule,
+  ],
   controllers: [AdminController],
-  providers: [AdminService, DashboardCronService, DashboardCacheService],
+  providers: [AdminService],
+  exports: [AdminService],
 })
 export class AdminModule {}
